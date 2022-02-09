@@ -44,6 +44,11 @@ from tensorflow.python.tpu import tpu_embedding_v2_utils
 from tensorflow.python.tpu import tpu_strategy_util
 from tensorflow.python.util import nest
 
+try:
+  from cloud_tpu_client import client  # pylint: disable=g-import-not-at-top
+except ImportError:
+  from tensorflow.python.tpu.client import client  # pylint: disable=g-import-not-at-top
+
 FLAGS = flags.FLAGS
 flags.DEFINE_string('tpu', '', 'Name of TPU to connect to.')
 flags.DEFINE_string('project', None, 'Name of GCP project with TPU.')
@@ -62,6 +67,9 @@ class TPUEmbeddingCorrectness(parameterized.TestCase, test.TestCase):
 
   def setUp(self):
     super(TPUEmbeddingCorrectness, self).setUp()
+    if FLAGS.project is not None or FLAGS.zone is not None:
+      c = client.Client(tpu=FLAGS.tpu, zone=FLAGS.zone, project=FLAGS.project)
+      c.configure_tpu_version(version='nightly', restart_type='always')
     self.embedding_values = np.array(list(range(32)), dtype=np.float64)
     self.initializer = init_ops_v2.Constant(self.embedding_values)
     # Embedding for video initialized to

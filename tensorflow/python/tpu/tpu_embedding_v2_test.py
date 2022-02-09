@@ -57,6 +57,11 @@ from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training.tracking import util
 from tensorflow.python.util import nest
 
+try:
+  from cloud_tpu_client import client  # pylint: disable=g-import-not-at-top
+except ImportError:
+  from tensorflow.python.tpu.client import client  # pylint: disable=g-import-not-at-top
+
 FLAGS = flags.FLAGS
 flags.DEFINE_string('tpu', '', 'Name of TPU to connect to.')
 flags.DEFINE_string('project', None, 'Name of GCP project with TPU.')
@@ -75,6 +80,9 @@ class TPUEmbeddingCheckpointTest(parameterized.TestCase, test.TestCase):
 
   def setUp(self):
     super(TPUEmbeddingCheckpointTest, self).setUp()
+    if FLAGS.project is not None or FLAGS.zone is not None:
+      c = client.Client(tpu=FLAGS.tpu, zone=FLAGS.zone, project=FLAGS.project)
+      c.configure_tpu_version(version='nightly', restart_type='always')
     self.resolver = tpu_cluster_resolver.TPUClusterResolver(
         tpu=FLAGS.tpu, zone=FLAGS.zone, project=FLAGS.project)
     remote.connect_to_cluster(self.resolver)
@@ -350,6 +358,9 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
 
   def setUp(self):
     super(TPUEmbeddingTest, self).setUp()
+    if FLAGS.project is not None or FLAGS.zone is not None:
+      c = client.Client(tpu=FLAGS.tpu, zone=FLAGS.zone, project=FLAGS.project)
+      c.configure_tpu_version(version='nightly', restart_type='always')
     self.embedding_values = np.array(list(range(32)), dtype=np.float64)
     self.initializer = init_ops_v2.Constant(self.embedding_values)
     # Embedding for video initialized to
@@ -445,6 +456,7 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
             tpu_embedding.AdagradParameters(learning_rate=0.1))
 
   def test_pass_non_tensor_to_apply_gradients(self):
+    self.skip_if_oss()
     strategy, mid_level_api, _ = self._create_strategy_and_mid_level('sgd')
     # We aren't going to actually run anything, so the batch_size here does not
     # matter.
@@ -469,6 +481,7 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
       strategy.run(test_apply_2)
 
   def test_pass_none_to_apply_gradients(self):
+    self.skip_if_oss()
     strategy, mid_level_api, _ = self._create_strategy_and_mid_level('sgd')
     mid_level_api.build([
         TensorShape((self.batch_size, 2)),
@@ -532,6 +545,7 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
     return strategy
 
   def test_enqueue_dequeue_apply_gradients_on_cpu(self):
+    self.skip_if_oss()
     # Dequeue on CPU.
     mid_level_api = self._create_mid_level()
     with self.assertRaises(RuntimeError):
@@ -550,12 +564,14 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
       mid_level_api.apply_gradients(None)
 
   def test_get_embedding_tables_on_cpu(self):
+    self.skip_if_oss()
     mid_level_api = self._create_mid_level()
     self.assertEqual(
         set(mid_level_api.embedding_tables.keys()),
         set([self.table_video, self.table_user]))
 
   def test_get_embedding_tables_on_tpu(self):
+    self.skip_if_oss()
     with self._get_strategy().scope():
       mid_level_api = self._create_mid_level()
     with self.assertRaises(RuntimeError):
@@ -583,6 +599,7 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
       test_fn()
 
   def test_enqueue_wrong_weight_type_for_sparse_and_ragged_tensor(self):
+    self.skip_if_oss()
     strategy, mid_level_api, _ = self._create_strategy_and_mid_level('sgd')
 
     sparse = self._create_sparse_dataset(strategy, include_weights=True)
@@ -656,6 +673,7 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
     test_fn()
 
   def test_enqueue_incorrect_structure_for_features_and_weights(self):
+    self.skip_if_oss()
     strategy, mid_level_api, _ = self._create_strategy_and_mid_level('sgd')
 
     sparse = self._create_sparse_dataset(strategy, include_weights=True)
@@ -731,6 +749,7 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
     self.assertAllClose(sparse0, ragged0)
 
   def test_enqueue_per_device(self):
+    self.skip_if_oss()
     strategy, mid_level_api, _ = self._create_strategy_and_mid_level('sgd')
 
     sparse = self._create_sparse_dataset(strategy)
@@ -775,6 +794,7 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
     self.assertAllClose(activations0, per_device_activations0)
 
   def test_enqueue_cpu_tensor(self):
+    self.skip_if_oss()
     strategy, mid_level_api, _ = self._create_strategy_and_mid_level('sgd')
 
     input_fn = self._create_dense_input_fn(strategy)
@@ -795,7 +815,7 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
 
   @parameterized.parameters([True, False])
   def test_enqueue_cpu_tensor_with_outside_compilation(self, use_mlir):
-
+    self.skip_if_oss()
     if use_mlir:
       config.enable_mlir_bridge()
 
@@ -1240,6 +1260,7 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
 
   @parameterized.parameters([True, False])
   def test_optimizer_with_slot_creation_fn(self, use_tpu):
+    self.skip_if_oss()
     def slot_creation_fn(table, slot_names, _):
       slots = {}
       for slot in slot_names:
@@ -1281,6 +1302,7 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
                                   self.table_user.dim)))
 
   def test_optimizer_with_slot_creation_fn_non_partial(self):
+    self.skip_if_oss()
     def slot_creation_fn(table, slot_names, _):
       slots = {}
       for slot in slot_names:
@@ -1307,6 +1329,7 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
         mid_level_api.build(self.batch_size)
 
   def test_same_config_different_instantiations(self):
+    self.skip_if_oss()
     num_tables = 30
     table_dim = np.random.randint(1, 128, size=[num_tables])
     table_vocab_size = np.random.randint(100, 1000, size=[num_tables])
@@ -1333,6 +1356,7 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
     self.assertProtoEquals(tpu_embedding_config(), tpu_embedding_config())
 
   def test_multiple_creation(self):
+    self.skip_if_oss()
     feature_config = tpu_embedding_v2_utils.FeatureConfig(
         table=self.table_user, name='friends', max_sequence_length=2)
     optimizer = tpu_embedding_v2_utils.SGD(learning_rate=0.1)
@@ -1387,6 +1411,7 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
 
   @parameterized.parameters([True, False])
   def test_sequence_feature_with_build(self, is_updated_shape):
+    self.skip_if_oss()
     seq_length = 3
     # Set the max_seq_length in feature config
     for feature in self.feature_config:
@@ -1430,6 +1455,7 @@ class TPUEmbeddingTest(parameterized.TestCase, test.TestCase):
 
   @parameterized.parameters([True, False])
   def test_missing_feature(self, is_sparse):
+    self.skip_if_oss()
     strategy = self._get_strategy()
     with strategy.scope():
       optimizer = tpu_embedding_v2_utils.SGD(learning_rate=0.1)
@@ -1480,6 +1506,9 @@ class TPUEmbeddingHighDimensionalTensorTest(parameterized.TestCase,
 
   def setUp(self):
     super(TPUEmbeddingHighDimensionalTensorTest, self).setUp()
+    if FLAGS.project is not None or FLAGS.zone is not None:
+      c = client.Client(tpu=FLAGS.tpu, zone=FLAGS.zone, project=FLAGS.project)
+      c.configure_tpu_version(version='nightly', restart_type='always')
     self.embedding_values = np.array(list(range(32)), dtype=np.float64)
     self.initializer = init_ops_v2.Constant(self.embedding_values)
     # Embedding for video initialized to
@@ -1772,6 +1801,7 @@ class TPUEmbeddingHighDimensionalTensorTest(parameterized.TestCase,
          TensorShape((2, 4))])
 
   def test_build_incorrect_output_shapes(self):
+    self.skip_if_oss()
     _, mid_level_api, _ = self._create_strategy_and_mid_level('sgd')
     # Output shapes is set in the mid_level_api, but build with incorrect output
     # shapes.
@@ -1782,6 +1812,7 @@ class TPUEmbeddingHighDimensionalTensorTest(parameterized.TestCase,
       mid_level_api.build([TensorShape([1, 1, 1]) for _ in range(3)])
 
   def test_enqueue_incorrect_shape_feature(self):
+    self.skip_if_oss()
     strategy, mid_level_api, _ = self._create_strategy_and_mid_level('sgd')
 
     sparse = self._create_sparse_dataset(strategy)
@@ -1827,6 +1858,7 @@ class TPUEmbeddingHighDimensionalTensorTest(parameterized.TestCase,
       mid_level_api.build([TensorShape([1, None, None]) for _ in range(3)])
 
   def test_output_shapes_priority_over_feature_config_and_build(self):
+    self.skip_if_oss()
     _, mid_level_api, _ = self._create_strategy_and_mid_level('sgd')
 
     # The output shapes setting in the feature config has the first priority.
