@@ -320,6 +320,7 @@ cc_library(
         ":dataset_store",
         ":dispatcher_proto_cc",
         ":dispatcher_state",
+        ":graph_utils",
         ":grpc_util",
         ":journal",
         ":journal_proto_cc",
@@ -328,6 +329,7 @@ cc_library(
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
         "@com_google_absl//absl/types:optional",
         "//tensorflow/core:core_cpu",
@@ -387,6 +389,35 @@ tf_cc_test(
         "//tensorflow/core:testlib",
         "//tensorflow/core/platform:errors",
         "//tensorflow/core/platform:status_matchers",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "graph_utils",
+    srcs = ["graph_utils.cc"],
+    hdrs = [
+        "graph_utils.h",
+    ],
+    deps = [
+        "//tensorflow/core/framework:attr_value_proto_cc",
+        "//tensorflow/core/framework:graph_proto_cc",
+        "//tensorflow/core/framework:node_def_proto_cc",
+        "//tensorflow/core/platform:protobuf",
+        "@com_google_absl//absl/container:flat_hash_set",
+    ],
+)
+
+tf_cc_test(
+    name = "graph_utils_test",
+    srcs = ["graph_utils_test.cc"],
+    deps = [
+        ":common_proto_cc",
+        ":graph_utils",
+        ":test_util",
+        "//tensorflow/core:test",
+        "//tensorflow/core:test_main",
+        "//tensorflow/core/framework:graph_proto_cc",
     ],
 )
 
