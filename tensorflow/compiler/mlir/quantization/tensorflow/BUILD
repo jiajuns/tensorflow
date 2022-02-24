@@ -10,7 +10,7 @@ package(
 
 filegroup(
     name = "quantized_function_library_mlir",
-    srcs = ["quantized_function_library.mlir"],
+    srcs = ["passes/quantized_function_library.mlir"],
 )
 
 cc_library(
@@ -22,7 +22,6 @@ cc_library(
         "passes/util.h",
     ],
     deps = [
-        "//tensorflow/compiler/mlir/lite:tensorflow_lite",
         "//tensorflow/compiler/mlir/lite/quantization:quantization_lib",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:QuantOps",
@@ -38,7 +37,6 @@ td_library(
         "passes/quantize_composite_functions.td",
         "passes/utils.td",
     ],
-    visibility = ["//visibility:private"],
     deps = [
         "//tensorflow/compiler/mlir/lite:tensorflow_lite_ops_td_files",
         "//tensorflow/compiler/mlir/tensorflow:tensorflow_ops_td_files",
@@ -123,8 +121,6 @@ cc_library(
         "//tensorflow/core/platform:env",
         "//tensorflow/core/platform:macros",
         "//tensorflow/core/platform:path",
-        "//tensorflow/lite/c:common",
-        "//tensorflow/lite/kernels:padding",
         "//tensorflow/lite/kernels/internal:quantization_util",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/random",
@@ -142,12 +138,11 @@ cc_library(
 )
 
 tf_cc_binary(
-    name = "tf-opt-quant",
-    srcs = ["passes/tf_opt_quant.cc"],
+    name = "tf-quant-opt",
+    srcs = ["passes/tf_quant_opt.cc"],
     deps = [
         ":passes",
         "//tensorflow/compiler/mlir:init_mlir",
-        "//tensorflow/compiler/mlir/lite:tensorflow_lite",
         "//tensorflow/compiler/mlir/tensorflow",
         "//tensorflow/compiler/mlir/tensorflow:tensorflow_passes",
         "//tensorflow/compiler/mlir/tensorflow:tf_dialect_passes",
