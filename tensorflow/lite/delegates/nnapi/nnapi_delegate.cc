@@ -3608,7 +3608,17 @@ TfLiteStatus NNAPIDelegateKernel::Map(
         mapping_args.builder->AddScalarInt32Operand(
             builtin->dilation_height_factor);
       }
-      *nn_op_type = ANEURALNETWORKS_CONV_2D;
+      const int input_id = mapping_args.node->inputs->data[/*kInputTensor*/ 0];
+      const int filter_id =
+          mapping_args.node->inputs->data[/*kWeightsTensor*/ 1];
+      const int input_channels = context->tensors[input_id].dims->data[3];
+      const int filter_input_channels =
+          context->tensors[filter_id].dims->data[3];
+      if (input_channels == filter_input_channels) {
+        *nn_op_type = ANEURALNETWORKS_CONV_2D;
+      } else {
+        *nn_op_type = ANEURALNETWORKS_GROUPED_CONV_2D;
+      }
     } break;
     case kTfLiteBuiltinDepthwiseConv2d: {
       auto builtin = reinterpret_cast<TfLiteDepthwiseConvParams*>(
